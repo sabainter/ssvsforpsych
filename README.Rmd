@@ -110,6 +110,70 @@ knitr::kable(summary_results[, 1:6], align = 'lccccc', row.names = FALSE)
 plot(results)
 ```
 
+
+## Example 3 - example for SSVS-MI analysis
+
+First, we will show how to use `mice()` function to impute data.
+```{r impute-data, echo=TRUE, results='hide'}
+library(mice)
+
+# Load the mtcars dataset
+data <- mtcars
+
+# Introduce random missingness in 10% of the data
+set.seed(123)  
+n <- nrow(data) * ncol(data)
+missing_indices <- sample(n, size = 0.1 * n, replace = FALSE)
+
+# Convert missing indices to row-column positions
+rows <- (missing_indices - 1) %% nrow(data) + 1
+cols <- (missing_indices - 1) %/% nrow(data) + 1
+
+# Assign NA to the identified positions
+for (i in seq_along(rows)) {
+  data[rows[i], cols[i]] <- NA
+}
+
+# Perform multiple imputation using mice
+imputed_data <- mice(data, m = 5, maxit = 50, seed = 123)
+
+# Display the results of the imputation
+summary(imputed_data)
+
+# Extract and show the first completed dataset
+imputed_mtcars <- complete(imputed_data, "long")
+head(imputed_mtcars)
+
+```
+
+
+We will use this imputed data to do SSVS-MI analysis. We first need to specify outcome, predictors, and imputations, and then use `SSVS_MI()` function.
+
+```{r ssvs-MI, echo=TRUE, results='hide'}
+outcome <- 'qsec'
+predictors <- c('cyl', 'disp', 'hp', 'drat', 'wt', 'vs', 'am', 'gear', 'carb','mpg')
+imputation <- '.imp'
+results <- ssvs_mi(data = imputed_mtcars, y = outcome, x = predictors, imp = imputation)
+```
+
+
+The estimates of SSVS_MI result can be summarized by using `summary.mi()` function. This will display average, minimum, and maximum of estimates, MIP and average nonzero beta for each coefficient.
+```{r summary-est, echo=TRUE}
+summary_MI <- summary.mi(results)
+print(summary_MI)
+```
+
+The estimates for each predictor can then be visualized using the `plot.est()` function.
+```{r plot-est, echo =TRUE}
+plot.est(summary_MI)
+```
+
+The MIP for each predictor can then be visualized using the `plot.mip()` function.
+```{r plot-mip, echo=TRUE}
+plot.mip(summary_MI)
+```
+
+
 ## Interactive version
 
 You can launch an interactive (shiny) web application that lets you run SSVS analyses without programming. Simply install this package and run `SSVS::launch()` in an R console.
